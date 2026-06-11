@@ -88,7 +88,7 @@ func sqlParamLimit(dbType conf.DBType) int {
 	switch dbType {
 	case conf.PostgresDB:
 		return 34464
-	case conf.SQLiteDB, conf.SQLite3DB:
+	case conf.SQLiteDB, conf.SQLite3DB, conf.CloudflareD1:
 		// https://www.sqlite.org/limits.html
 		return 32766
 	default:
