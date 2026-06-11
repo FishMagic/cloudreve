@@ -11,6 +11,7 @@ var (
 	MsSqlDB    DBType = "mssql"
 	PostgresDB DBType = "postgres"
 	MariaDB    DBType = "mariadb"
+	CloudflareD1 DBType = "cloudflare-d1"
 )
 
 // Database 数据库

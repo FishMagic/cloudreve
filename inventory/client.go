@@ -17,6 +17,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/pkg/util"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/peterheb/cfd1"
 	"modernc.org/sqlite"
 )
 
@@ -62,13 +63,22 @@ func NewRawEntClient(l logging.Logger, config conf.ConfigProvider) (*ent.Client,
 	)
 
 	// Check if the database type is supported.
-	if confDBType != conf.SQLiteDB && confDBType != conf.MySqlDB && confDBType != conf.PostgresDB {
+	if confDBType != conf.SQLiteDB && confDBType != conf.MySqlDB && confDBType != conf.PostgresDB && confDBType != conf.CloudflareD1 {
 		return nil, fmt.Errorf("unsupported database type: %s", confDBType)
 	}
 	// If Database connection string provided, use it directly.
 	if dbConfig.DatabaseURL != "" {
 		l.Info("Connect to database with connection string")
-		client, err = sql.Open(string(confDBType), dbConfig.DatabaseURL)
+		if confDBType == conf.CloudflareD1 {
+			var db *rawsql.DB
+			db, err = rawsql.Open("cfd1", dbConfig.DatabaseURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open D1 database: %w", err)
+			}
+			client = sql.OpenDB("sqlite3", db)
+		} else {
+			client, err = sql.Open(string(confDBType), dbConfig.DatabaseURL)
+		}
 	} else {
 
 		switch confDBType {
@@ -76,6 +86,16 @@ func NewRawEntClient(l logging.Logger, config conf.ConfigProvider) (*ent.Client,
 			dbFile := util.RelativePath(dbConfig.DBFile)
 			l.Info("Connect to SQLite database %q.", dbFile)
 			client, err = sql.Open("sqlite3", util.RelativePath(dbConfig.DBFile))
+		case conf.CloudflareD1:
+			l.Info("Connect to Cloudflare D1 database %q.", dbConfig.Name)
+			// Construct cfd1 DSN: d1://account-id:api-token@database-name-or-UUID
+			dsn := fmt.Sprintf("d1://%s:%s@%s", dbConfig.User, dbConfig.Password, dbConfig.Name)
+			var db *rawsql.DB
+			db, err = rawsql.Open("cfd1", dsn)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open D1 database: %w", err)
+			}
+			client = sql.OpenDB("sqlite3", db)
 		case conf.PostgresDB:
 			l.Info("Connect to Postgres database %q.", dbConfig.Host)
 			client, err = sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
