@@ -31,6 +31,7 @@ type UserSettings struct {
 	DisableViewSync         bool         `json:"disable_view_sync"`
 	ShareLinksInProfile     string       `json:"share_links_in_profile"`
 	OAuthGrants             []OauthGrant `json:"oauth_grants,omitempty"`
+	Aria2Key                string       `json:"aria2_key,omitempty"`
 }
 
 func BuildUserSettings(u *ent.User, passkeys []*ent.Passkey, parser *uaparser.Parser, grants []*ent.OAuthGrant) *UserSettings {
@@ -48,6 +49,7 @@ func BuildUserSettings(u *ent.User, passkeys []*ent.Passkey, parser *uaparser.Pa
 		OAuthGrants: lo.Map(grants, func(item *ent.OAuthGrant, index int) OauthGrant {
 			return BuildOauthGrant(item)
 		}),
+		Aria2Key:            u.Settings.Aria2Key,
 	}
 }
 

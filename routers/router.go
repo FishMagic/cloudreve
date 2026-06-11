@@ -212,6 +212,10 @@ func initMasterRouter(dep dependency.Dep) *gin.Engine {
 	r.GET("manifest.json", controllers.Manifest)
 
 	noAuth := r.Group(constants.APIPrefix)
+	// Aria2 JSON-RPC / WebSocket Pass-through
+	noAuth.POST("aria2", controllers.Aria2RpcHandler)
+	noAuth.GET("aria2", controllers.Aria2RpcHandler)
+
 	wopi := noAuth.Group("file/wopi", middleware.HashID(hashid.FileID), middleware.ViewerSessionValidation())
 	{
 		// 获取文件信息

@@ -137,7 +137,7 @@ func (service *DownloadWorkflowService) CreateDownloadTask(c *gin.Context) ([]*T
 			continue
 		}
 
-		t, err := workflows.NewRemoteDownloadTask(c, src, service.SrcFile, service.Dst)
+		t, err := workflows.NewRemoteDownloadTask(c, src, service.SrcFile, service.Dst, nil)
 		if err != nil {
 			ae.Add(src, err)
 			continue
@@ -151,7 +151,7 @@ func (service *DownloadWorkflowService) CreateDownloadTask(c *gin.Context) ([]*T
 	}
 
 	if service.SrcFile != "" {
-		t, err := workflows.NewRemoteDownloadTask(c, "", service.SrcFile, service.Dst)
+		t, err := workflows.NewRemoteDownloadTask(c, "", service.SrcFile, service.Dst, nil)
 		if err != nil {
 			ae.Add(service.SrcFile, err)
 		}

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/cloudreve/Cloudreve/v4/ent"
 	"github.com/cloudreve/Cloudreve/v4/ent/davaccount"
 	"github.com/cloudreve/Cloudreve/v4/ent/file"
@@ -22,6 +23,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/ent/task"
 	"github.com/cloudreve/Cloudreve/v4/ent/user"
 	"github.com/cloudreve/Cloudreve/v4/inventory/types"
+	"github.com/cloudreve/Cloudreve/v4/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v4/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v4/pkg/util"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -63,6 +65,8 @@ type (
 		GetLoginUserByID(ctx context.Context, uid int) (*ent.User, error)
 		// GetLoginUserByEmail returns the login user by its WebDAV credentials.
 		GetActiveByDavAccount(ctx context.Context, email, pwd string) (*ent.User, error)
+		// GetActiveByAria2Key returns the active user by their Aria2 key.
+		GetActiveByAria2Key(ctx context.Context, key string, dbType conf.DBType) (*ent.User, error)
 		// SaveSettings saves user settings.
 		SaveSettings(ctx context.Context, u *ent.User) error
 		// SearchActive search active users by Email or nickname.
@@ -375,6 +379,28 @@ func (c *userClient) GetActiveByDavAccount(ctx context.Context, email, pwd strin
 				q.Where(davaccount.Password(pwd))
 			}),
 	).First(ctx)
+}
+
+func (c *userClient) GetActiveByAria2Key(ctx context.Context, key string, dbType conf.DBType) (*ent.User, error) {
+	if key == "" {
+		return nil, errors.New("key cannot be empty")
+	}
+
+	q := c.client.User.Query().
+		Where(user.StatusEQ(user.StatusActive)).
+		Where(func(s *sql.Selector) {
+			if dbType == conf.PostgresDB {
+				s.Where(sql.ExprP("settings->>'aria2_key' = ?", key))
+			} else {
+				s.Where(sql.ExprP("JSON_EXTRACT(settings, '$.aria2_key') = ?", key))
+			}
+		})
+
+	if _, ok := ctx.Value(LoadUserGroup{}).(bool); ok {
+		q = q.WithGroup()
+	}
+
+	return withUserEagerLoading(ctx, q).First(ctx)
 }
 
 func (c *userClient) GetLoginUserByID(ctx context.Context, uid int) (*ent.User, error) {

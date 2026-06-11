@@ -17,6 +17,7 @@ type (
 		DisableViewSync     bool                     `json:"disable_view_sync,omitempty"`
 		FsViewMap           map[string]ExplorerView  `json:"fs_view_map,omitempty"`
 		ShareLinksInProfile ShareLinksInProfileLevel `json:"share_links_in_profile,omitempty"`
+		Aria2Key            string                   `json:"aria2_key,omitempty"`
 	}
 
 	ShareLinksInProfileLevel string

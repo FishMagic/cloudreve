@@ -54,6 +54,7 @@ type (
 		GetTaskStatusTried int                     `json:"get_task_status_tried,omitempty"`
 		Transferred        map[int]interface{}     `json:"transferred,omitempty"`
 		Failed             int                     `json:"failed,omitempty"`
+		Options            map[string]interface{} `json:"options,omitempty"`
 	}
 )
 
@@ -82,11 +83,12 @@ func init() {
 }
 
 // NewRemoteDownloadTask creates a new RemoteDownloadTask
-func NewRemoteDownloadTask(ctx context.Context, src string, srcFile, dst string) (queue.Task, error) {
+func NewRemoteDownloadTask(ctx context.Context, src string, srcFile, dst string, options map[string]interface{}) (queue.Task, error) {
 	state := &RemoteDownloadTaskState{
 		SrcUri:     src,
 		SrcFileUri: srcFile,
 		Dst:        dst,
+		Options:    options,
 		NodeState:  NodeState{},
 	}
 	stateBytes, err := json.Marshal(state)
@@ -214,8 +216,17 @@ func (m *RemoteDownloadTask) createDownloadTask(ctx context.Context, dep depende
 		torrentUrl = torrentUrls[0].Url
 	}
 
+	// Merge group-level download options and task-level options
+	mergedOptions := make(map[string]interface{})
+	for k, v := range user.Edges.Group.Settings.RemoteDownloadOptions {
+		mergedOptions[k] = v
+	}
+	for k, v := range m.state.Options {
+		mergedOptions[k] = v
+	}
+
 	// Create download task
-	handle, err := m.d.CreateTask(ctx, torrentUrl, user.Edges.Group.Settings.RemoteDownloadOptions)
+	handle, err := m.d.CreateTask(ctx, torrentUrl, mergedOptions)
 	if err != nil {
 		return task.StatusError, fmt.Errorf("failed to create download task: %w", err)
 	}

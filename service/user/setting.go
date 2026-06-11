@@ -230,6 +230,7 @@ type (
 		TwoFACode               *string   `json:"two_fa_code" binding:"omitempty"`
 		DisableViewSync         *bool     `json:"disable_view_sync" binding:"omitempty"`
 		ShareLinksInProfile     *string   `json:"share_links_in_profile" binding:"omitempty"`
+		Aria2Key                *string   `json:"aria2_key" binding:"omitempty"`
 	}
 	PatchUserSettingParamsCtx struct{}
 )
@@ -278,6 +279,11 @@ func (s *PatchUserSetting) Patch(c *gin.Context) error {
 
 	if s.ShareLinksInProfile != nil {
 		u.Settings.ShareLinksInProfile = types.ShareLinksInProfileLevel(*s.ShareLinksInProfile)
+		saveSetting = true
+	}
+
+	if s.Aria2Key != nil {
+		u.Settings.Aria2Key = *s.Aria2Key
 		saveSetting = true
 	}
 
