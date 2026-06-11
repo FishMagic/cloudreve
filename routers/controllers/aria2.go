@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -546,7 +545,7 @@ func handleTellStatus(c *gin.Context, id interface{}, params []interface{}, user
 
 	taskClient := dep.TaskClient()
 	t, err := taskClient.GetTaskByID(c.Request.Context(), taskID)
-	if err != nil || (t.Edges.User != nil && t.Edges.User.ID != user.ID) || t.OwnerID != user.ID {
+	if err != nil || (t.Edges.User != nil && t.Edges.User.ID != user.ID) || t.UserTasks != user.ID {
 		return &JsonRpcResponse{
 			Jsonrpc: "2.0",
 			ID:      id,
@@ -620,7 +619,7 @@ func handleRemove(c *gin.Context, id interface{}, params []interface{}, user *en
 	}
 
 	dbTask, err := dep.TaskClient().GetTaskByID(ctx, taskID)
-	if err == nil && ((dbTask.Edges.User != nil && dbTask.Edges.User.ID == user.ID) || dbTask.OwnerID == user.ID) {
+	if err == nil && ((dbTask.Edges.User != nil && dbTask.Edges.User.ID == user.ID) || dbTask.UserTasks == user.ID) {
 		if dbTask.Status == task.StatusProcessing || dbTask.Status == task.StatusQueued || dbTask.Status == task.StatusSuspending {
 			_, _ = dep.TaskClient().Update(ctx, dbTask, &inventory.TaskArgs{
 				Status: task.StatusCanceled,
