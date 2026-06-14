@@ -236,6 +236,8 @@ func handleAria2Rpc(c *gin.Context, req *JsonRpcRequest) *JsonRpcResponse {
 		return handleTellStopped(c, req.ID, user, dep)
 	case "aria2.tellStatus":
 		return handleTellStatus(c, req.ID, params, user, dep)
+	case "aria2.getGlobalStat":
+		return handleGetGlobalStat(c, req.ID, user, dep)
 	case "aria2.remove", "aria2.forceRemove":
 		return handleRemove(c, req.ID, params, user, dep)
 	case "aria2.getVersion":
@@ -265,6 +267,7 @@ func handleAria2Rpc(c *gin.Context, req *JsonRpcRequest) *JsonRpcResponse {
 				"aria2.tellWaiting",
 				"aria2.tellStopped",
 				"aria2.tellStatus",
+				"aria2.getGlobalStat",
 				"aria2.remove",
 				"aria2.forceRemove",
 				"aria2.getVersion",
@@ -631,6 +634,61 @@ func handleRemove(c *gin.Context, id interface{}, params []interface{}, user *en
 		Jsonrpc: "2.0",
 		ID:      id,
 		Result:  gid,
+	}
+}
+
+func handleGetGlobalStat(c *gin.Context, id interface{}, user *ent.User, dep dependency.Dep) *JsonRpcResponse {
+	taskClient := dep.TaskClient()
+	args := &inventory.ListTaskArgs{
+		PaginationArgs: &inventory.PaginationArgs{
+			PageSize: 1000,
+		},
+		Types:  []string{queue.RemoteDownloadTaskType},
+		UserID: user.ID,
+	}
+
+	res, err := taskClient.List(c.Request.Context(), args)
+	if err != nil {
+		return &JsonRpcResponse{
+			Jsonrpc: "2.0",
+			ID:      id,
+			Error: &JsonRpcErr{
+				Code:    -32603,
+				Message: fmt.Sprintf("Failed to list tasks for global stat: %s", err),
+			},
+		}
+	}
+
+	var numActive int
+	var numWaiting int
+	var numStopped int
+	var downloadSpeed int64
+
+	for _, t := range res.Tasks {
+		switch t.Status {
+		case task.StatusQueued:
+			numWaiting++
+		case task.StatusProcessing, task.StatusSuspending:
+			numActive++
+			var state workflows.RemoteDownloadTaskState
+			if err := json.Unmarshal([]byte(t.PrivateState), &state); err == nil && state.Status != nil {
+				downloadSpeed += state.Status.DownloadSpeed
+			}
+		case task.StatusCompleted, task.StatusError, task.StatusCanceled:
+			numStopped++
+		}
+	}
+
+	return &JsonRpcResponse{
+		Jsonrpc: "2.0",
+		ID:      id,
+		Result: map[string]string{
+			"downloadSpeed": strconv.FormatInt(downloadSpeed, 10),
+			"uploadSpeed":   "0",
+			"numActive":     strconv.Itoa(numActive),
+			"numWaiting":    strconv.Itoa(numWaiting),
+			"numStopped":    strconv.Itoa(numStopped),
+		},
 	}
 }
 
